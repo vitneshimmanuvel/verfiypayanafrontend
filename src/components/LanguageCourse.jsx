@@ -194,7 +194,7 @@ const LanguageCourse = () => {
     setIsSubmitting(true);
     try {
       // Assuming your backend is on the same host or port 5000 in dev
-      const response = await fetch('http://localhost:5000/submit-language-form', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/submit-language-form`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
