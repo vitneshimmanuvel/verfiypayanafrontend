@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import BannerSection from './Baneer';
 import DentalProgram from './DentalProgram';
 import HelpCommunity from './HelpCommunity';
@@ -12,6 +13,33 @@ import TestimonialSection from './TestimonialSection';
 import AdPopup from './AdPopup ';
 
 const HomePage = () => {
+  const location = useLocation();
+
+  // Auto-scroll to work or study profile elements based on subroutes
+  useEffect(() => {
+    let targetId = '';
+    const path = location.pathname.toLowerCase();
+    
+    if (path.includes('workprofile') || path.includes('work-profile')) {
+      targetId = 'work-profile-form';
+    } else if (path.includes('studyprofile') || path.includes('study-profile')) {
+      targetId = 'study';
+    }
+    
+    if (targetId) {
+      setTimeout(() => {
+        const element = document.getElementById(targetId);
+        if (element) {
+          const absoluteTop = element.getBoundingClientRect().top + window.scrollY;
+          window.scrollTo({
+            top: absoluteTop - 80,
+            behavior: "smooth"
+          });
+        }
+      }, 300);
+    }
+  }, [location.pathname]);
+
   // Auto-scroll to section when page loads with hash in URL
   useEffect(() => {
     const scrollToHashElement = () => {
@@ -24,8 +52,9 @@ const HomePage = () => {
       if (!elementToScroll) return;
 
       setTimeout(() => {
+        const absoluteTop = elementToScroll.getBoundingClientRect().top + window.scrollY;
         window.scrollTo({
-          top: elementToScroll.offsetTop - 80,
+          top: absoluteTop - 80,
           behavior: "smooth"
         });
       }, 100);
@@ -40,7 +69,6 @@ const HomePage = () => {
 
   return (
     <>
-      <AdPopup />
       <BannerSection />
       
       <div id='tech'>
@@ -69,6 +97,7 @@ const HomePage = () => {
       
       <NewsGPT />
       <TestimonialSection />
+      <AdPopup />
     </>
   );
 };

@@ -161,7 +161,7 @@ const HelpCommunity = () => {
         </div>
       </div>
 
-      <div className="content-container">
+      <div className="content-container" id="work-profile-form">
         <div className="left-panel">
           <h1 className='worky'>WORK PROFILE ASSESSMENT</h1>
           {step === 1 && (

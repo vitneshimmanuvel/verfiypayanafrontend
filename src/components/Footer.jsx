@@ -33,24 +33,34 @@ const Footer = () => {
       email: "work@payanaoverseas.com",
       phones: ["+91 70108 38005"],
     },
-  
+    {
+      title: "Rewards",
+      email: "Refer & Earn Program",
+      phones: ["Get cash payouts!"],
+      link: "/referral"
+    }
   ];
 
   return (
     <footer className="footer">
       <div className="footer-left-group">
         {sections.map((section, index) => (
-          <div className="footer-section" key={index}>
-            <h3>{section.title}</h3>
+          <div 
+            className="footer-section" 
+            key={index}
+            style={section.link ? { cursor: 'pointer' } : {}}
+            onClick={section.link ? () => window.location.href = section.link : undefined}
+          >
+            <h3 style={section.link ? { color: '#fbbf24' } : {}}>{section.title}</h3>
             {section.email && (
               <p>
-                <FaEnvelope className="icon" /> {section.email}
+                {section.link ? "🤝 " : <FaEnvelope className="icon" />} {section.email}
               </p>
             )}
             {section.phones &&
               section.phones.map((phone, i) => (
                 <p key={i}>
-                  <FaPhone className="icon" /> {phone}
+                  {section.link ? "⭐ " : <FaPhone className="icon" />} {phone}
                 </p>
               ))}
           </div>

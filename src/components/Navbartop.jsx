@@ -83,6 +83,13 @@ const Navbartop = () => {
                                 {['Study Tech', 'Study MBBS', 'Study Arts ', 'Language', 'Invest', 'Work'][index]}
                             </li>
                         ))}
+                        <li 
+                            onClick={() => window.location.href = '/referral'}
+                            className="referral-link"
+                            style={{ color: '#fbbf24', fontWeight: 'bold' }}
+                        >
+                            Refer &amp; Earn
+                        </li>
                     </ul>
                 </div>
             </div>

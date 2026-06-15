@@ -8,6 +8,11 @@ const Invest = () => {
     phone: '',
     countryCode: '+91'
   });
+  const [flipped, setFlipped] = useState({
+    canada: false,
+    us: false,
+    netherlands: false
+  });
   const [submissions, setSubmissions] = useState({
     canada: { submitted: false, valid: false, loading: false },
     us: { submitted: false, valid: false, loading: false },
@@ -74,10 +79,11 @@ const Invest = () => {
       <div className="invest-flags">
         {[{id: 'canada', name: 'Canada'}, {id: 'us', name: 'USA'}, {id: 'netherlands', name: 'Netherlands'}].map(country => (
           <div key={country.id} className="flag-container">
-            <div className="card">
-              <div className="card-front">
+            <div className={`card ${flipped[country.id] ? 'flipped' : ''}`}>
+              <div className="card-front" onClick={() => setFlipped(prev => ({...prev, [country.id]: true}))}>
                 <img src={`/${country.name}.png`} alt={`${country.name} Flag`} className="invest-flag" />
                 <p className="country-name">{country.name}</p>
+                <span className="tap-hint">Tap to enquire</span>
               </div>
               <div className="card-back">
                 <form 
@@ -85,7 +91,10 @@ const Invest = () => {
                   className="contact-form"
                 >
                   {submissions[country.id].submitted && submissions[country.id].valid ? (
-                    <p className="thank-you">Thank you for your inquiry!</p>
+                    <>
+                      <p className="thank-you">Thank you for your inquiry!</p>
+                      <button type="button" className="back-btn" onClick={() => setFlipped(prev => ({...prev, [country.id]: false}))}>← Back</button>
+                    </>
                   ) : (
                     <>
                       <label className="contact-label">Contact Us</label>
@@ -145,6 +154,7 @@ const Invest = () => {
                       >
                         {submissions[country.id].loading ? 'Submitting...' : 'Submit'}
                       </button>
+                      <button type="button" className="back-btn" onClick={() => setFlipped(prev => ({...prev, [country.id]: false}))}>← Back</button>
                     </>
                   )}
                 </form>
