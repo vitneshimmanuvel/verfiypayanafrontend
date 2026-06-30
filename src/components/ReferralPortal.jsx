@@ -28,7 +28,13 @@ const ReferralPortal = () => {
     points_per_referral: 10,
     points_on_conversion: 100,
     points_old_client_bonus: 50,
-    cash_per_point: 10
+    cash_per_point: 10,
+    points_on_registration: 20,
+    points_on_login: 5,
+    calc_default_submissions: 5,
+    calc_default_conversions: 2,
+    calc_title: 'Reward Calculator',
+    calc_description: 'Estimate your earnings based on referral configurations.'
   });
 
   // Calculator state
@@ -46,16 +52,17 @@ const ReferralPortal = () => {
   const [refFriendName, setRefFriendName] = useState('');
   const [refFriendEmail, setRefFriendEmail] = useState('');
   const [refFriendPhone, setRefFriendPhone] = useState('');
-  const [refGoal, setRefGoal] = useState(''); // 'study', 'work', 'invest', 'language'
-  const [refCountry, setRefCountry] = useState('');
-  const [refBudget, setRefBudget] = useState('');
-  const [refExamReady, setRefExamReady] = useState('');
-  const [refNotes, setRefNotes] = useState('');
   const [questionnaireError, setQuestionnaireError] = useState('');
+
+  // Dynamic Questions states
+  const [questions, setQuestions] = useState([]);
+  const [answers, setAnswers] = useState({}); // { [questionId]: value }
+  const [expandedReferralId, setExpandedReferralId] = useState(null);
 
   // Load configs on mount
   useEffect(() => {
     fetchConfigs();
+    fetchQuestions();
     // Check if user is logged in
     const storedReferrer = localStorage.getItem('payana_referrer_profile');
     if (storedReferrer) {
@@ -64,6 +71,18 @@ const ReferralPortal = () => {
       fetchProfile(parsed.email);
     }
   }, []);
+
+  // Synchronize calculator slider defaults when configs load
+  useEffect(() => {
+    if (configs) {
+      if (configs.calc_default_submissions !== undefined) {
+        setCalcSubmissions(Number(configs.calc_default_submissions));
+      }
+      if (configs.calc_default_conversions !== undefined) {
+        setCalcConversions(Number(configs.calc_default_conversions));
+      }
+    }
+  }, [configs]);
 
   const fetchConfigs = async () => {
     try {
@@ -74,6 +93,27 @@ const ReferralPortal = () => {
       }
     } catch (err) {
       console.error('Error fetching config:', err);
+    }
+  };
+
+  const fetchQuestions = async () => {
+    try {
+      const res = await fetch(`${API_URL}/referral/questions`);
+      const data = await res.json();
+      if (data.success) {
+        setQuestions(data.data);
+        const initialAnswers = {};
+        data.data.forEach(q => {
+          if (q.question_type === 'boolean') {
+            initialAnswers[q.id] = 'No';
+          } else {
+            initialAnswers[q.id] = '';
+          }
+        });
+        setAnswers(initialAnswers);
+      }
+    } catch (err) {
+      console.error('Error fetching questions:', err);
     }
   };
 
@@ -148,13 +188,14 @@ const ReferralPortal = () => {
 
     setSubmittingReferral(true);
 
-    const questionnaire = {
-      targetCountry: refCountry,
-      preference: refGoal,
-      examReady: refExamReady,
-      budget: refBudget,
-      additionalNotes: refNotes
-    };
+    const questionnairePayload = questions.map(q => ({
+      questionId: q.id,
+      questionText: q.question_text,
+      questionType: q.question_type,
+      answer: String(answers[q.id] !== undefined ? answers[q.id] : ''),
+      points: q.points,
+      verifiedByAdmin: q.verified_by_admin
+    }));
 
     try {
       const res = await fetch(`${API_URL}/referrer/submit-referral`, {
@@ -165,7 +206,7 @@ const ReferralPortal = () => {
           referredName: refFriendName,
           referredEmail: refFriendEmail,
           referredPhone: refFriendPhone,
-          questionnaire
+          questionnaire: questionnairePayload
         })
       });
 
@@ -173,7 +214,15 @@ const ReferralPortal = () => {
       setSubmittingReferral(false);
 
       if (data.success) {
-        setCelebrationPoints(configs.points_per_referral);
+        // Calculate immediate points awarded
+        let immediatePoints = Number(configs.points_per_referral) || 0;
+        questions.forEach(q => {
+          if (!q.verified_by_admin) {
+            immediatePoints += Number(q.points) || 0;
+          }
+        });
+
+        setCelebrationPoints(immediatePoints);
         setReferralSuccess(true);
         fetchProfile(referrer.email);
         
@@ -181,11 +230,13 @@ const ReferralPortal = () => {
         setRefFriendName('');
         setRefFriendEmail('');
         setRefFriendPhone('');
-        setRefGoal('');
-        setRefCountry('');
-        setRefBudget('');
-        setRefExamReady('');
-        setRefNotes('');
+        
+        const resetAnswers = {};
+        questions.forEach(q => {
+          if (q.question_type === 'boolean') resetAnswers[q.id] = 'No';
+          else resetAnswers[q.id] = '';
+        });
+        setAnswers(resetAnswers);
         setQuestionnaireStep(1);
       } else {
         setQuestionnaireError(data.message || 'Error submitting referral. Please try again.');
@@ -263,6 +314,21 @@ const ReferralPortal = () => {
                   </p>
                   <p className="stat-help-text text-yellow">
                     {configs.points_per_referral} points per submission
+                  </p>
+                </div>
+              </div>
+
+              <div className="stat-card glass-premium">
+                <div className="stat-icon-wrapper stat-icon-points" style={{ background: 'rgba(249, 115, 22, 0.1)', color: '#f97316' }}>
+                  <FaCoins size={24} />
+                </div>
+                <div>
+                  <h3 className="stat-label">Points On Hold</h3>
+                  <p className="stat-value" style={{ color: '#f97316' }}>
+                    {profileData.profile?.points_on_hold || 0}
+                  </p>
+                  <p className="stat-help-text">
+                    Pending verification
                   </p>
                 </div>
               </div>
@@ -348,35 +414,99 @@ const ReferralPortal = () => {
                     </thead>
                     <tbody>
                       {profileData.referrals.map((ref) => {
-                        const q = ref.questionnaire || {};
+                        let qList = [];
+                        let isOldStyle = false;
+                        try {
+                          qList = typeof ref.questionnaire === 'string' ? JSON.parse(ref.questionnaire) : ref.questionnaire;
+                          if (!Array.isArray(qList)) {
+                            isOldStyle = true;
+                          }
+                        } catch (e) {
+                          isOldStyle = true;
+                        }
+
                         return (
-                          <tr key={ref.id} className="table-body-row">
-                            <td>
-                              <p className="referred-name">{ref.referred_name}</p>
-                              <p className="referred-email">{ref.referred_email}</p>
-                              <p className="referred-phone">{ref.referred_phone}</p>
-                            </td>
-                            <td>
-                              <div className="referred-interest-cell">
-                                <p><span className="cell-label">Pathway:</span> <span className="font-semibold text-gradient uppercase">{q.preference || 'N/A'}</span></p>
-                                <p><span className="cell-label">Destination:</span> <span className="font-semibold">{q.targetCountry || 'N/A'}</span></p>
-                                <p><span className="cell-label">Budget:</span> <span className="font-semibold">{q.budget || 'N/A'}</span></p>
-                              </div>
-                            </td>
-                            <td>
-                              <span className="points-awarded">
-                                <FaCoins size={12} /> {ref.points_awarded || 0} pts
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`status-badge status-${ref.status}`} data-label="Status">
-                                {ref.status}
-                              </span>
-                            </td>
-                            <td className="remarks-cell">
-                              {ref.notes || 'No notes yet'}
-                            </td>
-                          </tr>
+                          <React.Fragment key={ref.id}>
+                            <tr className="table-body-row">
+                              <td>
+                                <p className="referred-name">{ref.referred_name}</p>
+                                <p className="referred-email">{ref.referred_email}</p>
+                                <p className="referred-phone">{ref.referred_phone}</p>
+                              </td>
+                              <td>
+                                {isOldStyle ? (
+                                  <div className="referred-interest-cell">
+                                    <p><span className="cell-label">Pathway:</span> <span className="font-semibold text-gradient uppercase">{qList.preference || 'N/A'}</span></p>
+                                    <p><span className="cell-label">Destination:</span> <span className="font-semibold">{qList.targetCountry || 'N/A'}</span></p>
+                                    <p><span className="cell-label">Budget:</span> <span className="font-semibold">{qList.budget || 'N/A'}</span></p>
+                                  </div>
+                                ) : (
+                                  <div className="referred-interest-cell">
+                                    {Array.isArray(qList) && qList.slice(0, 2).map((item, idx) => (
+                                      <p key={idx}>
+                                        <span className="cell-label">{item.questionText}:</span>{' '}
+                                        <span className="font-semibold">{item.answer}</span>
+                                      </p>
+                                    ))}
+                                    {Array.isArray(qList) && qList.length > 2 && (
+                                      <button 
+                                        onClick={() => setExpandedReferralId(expandedReferralId === ref.id ? null : ref.id)}
+                                        className="text-xs font-medium underline mt-1"
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#a5b4fc' }}
+                                      >
+                                        {expandedReferralId === ref.id ? 'Hide Details' : `View All ${qList.length} Answers`}
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                <span className="points-awarded">
+                                  <FaCoins size={12} /> {ref.points_awarded || 0} pts
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`status-badge status-${ref.status}`} data-label="Status">
+                                  {ref.status}
+                                </span>
+                              </td>
+                              <td className="remarks-cell">
+                                {ref.notes || 'No notes yet'}
+                              </td>
+                            </tr>
+                            {!isOldStyle && expandedReferralId === ref.id && (
+                              <tr className="table-expanded-row" style={{ backgroundColor: 'rgba(30, 41, 59, 0.4)' }}>
+                                <td colSpan={5} style={{ padding: '15px 20px' }}>
+                                  <div className="expanded-answers-container" style={{ textAlign: 'left' }}>
+                                    <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#f8fafc', fontWeight: 'bold' }}>Questionnaire Breakdown</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+                                      {qList.map((item, idx) => (
+                                        <div key={idx} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                          <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#94a3b8' }}>{item.questionText}</p>
+                                          <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: '600', color: '#f1f5f9' }}>{item.answer}</p>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ 
+                                              fontSize: '10px', 
+                                              padding: '2px 6px', 
+                                              borderRadius: '4px', 
+                                              fontWeight: 'bold',
+                                              backgroundColor: item.status === 'verified' ? 'rgba(16, 185, 129, 0.15)' : item.status === 'rejected' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(249, 115, 22, 0.15)', 
+                                              color: item.status === 'verified' ? '#34d399' : item.status === 'rejected' ? '#f87171' : '#fb923c' 
+                                            }}>
+                                              {item.status === 'verified' ? 'Verified' : item.status === 'rejected' ? 'Rejected' : 'Pending Verification'}
+                                            </span>
+                                            <span style={{ fontSize: '11px', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                              <FaCoins size={10} /> {item.points} pts
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -455,9 +585,9 @@ const ReferralPortal = () => {
               <div className="referral-hero-right glass-card">
                 <div>
                   <h3 className="calc-card-title">
-                    <FaTrophy className="text-yellow-400" /> Reward Calculator
+                    <FaTrophy className="text-yellow-400" /> {configs.calc_title || 'Reward Calculator'}
                   </h3>
-                  <p className="calc-card-subtitle">Estimate your earnings based on referral configurations.</p>
+                  <p className="calc-card-subtitle">{configs.calc_description || 'Estimate your earnings based on referral configurations.'}</p>
                   
                   {/* Slider 1 */}
                   <div className="calc-input-group">
@@ -754,16 +884,15 @@ const ReferralPortal = () => {
                   {/* Step Indicators */}
                   <div className="step-indicator-wrapper">
                     <div>
-                      <span className="badge-premium badge-indigo">Step {questionnaireStep} of 3</span>
+                      <span className="badge-premium badge-indigo">Step {questionnaireStep} of 2</span>
                       <h3 className="modal-title" style={{ marginTop: '0.25rem' }}>
                         {questionnaireStep === 1 && "Friend's Contact Information"}
-                        {questionnaireStep === 2 && "Pathway & Choice of Preference"}
-                        {questionnaireStep === 3 && "Candidate Assessment Details"}
+                        {questionnaireStep === 2 && "Assessment Questionnaire"}
                       </h3>
                     </div>
                     
                     <div className="step-indicator-bars">
-                      {[1, 2, 3].map((step) => (
+                      {[1, 2].map((step) => (
                         <div 
                           key={step} 
                           className={`step-indicator-bar ${
@@ -823,129 +952,88 @@ const ReferralPortal = () => {
                       </div>
                     )}
 
-                    {/* STEP 2: Pathway Options */}
+                    {/* STEP 2: Dynamic Questions */}
                     {questionnaireStep === 2 && (
-                      <div className="form-fields animate-slide-up">
-                        <label className="input-label">What is your friend interested in doing? *</label>
-                        
-                        <div className="pathway-selection-grid">
-                          <button
-                            type="button"
-                            onClick={() => setRefGoal('study')}
-                            className={`path-selection-card ${refGoal === 'study' ? 'selected' : ''}`}
-                          >
-                            <span className="path-icon">🎓</span>
-                            <div>
-                              <p className="path-card-title">Study Abroad</p>
-                              <p className="path-card-desc">Bachelor's, Master's, PG programs</p>
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setRefGoal('work')}
-                            className={`path-selection-card ${refGoal === 'work' ? 'selected' : ''}`}
-                          >
-                            <span className="path-icon">💼</span>
-                            <div>
-                              <p className="path-card-title">Work Abroad</p>
-                              <p className="path-card-desc">Job seeker, work permits, pathways</p>
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setRefGoal('invest')}
-                            className={`path-selection-card ${refGoal === 'invest' ? 'selected' : ''}`}
-                          >
-                            <span className="path-icon">💰</span>
-                            <div>
-                              <p className="path-card-title">Invest Abroad</p>
-                              <p className="path-card-desc">Business setup, golden visa, investor</p>
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setRefGoal('language')}
-                            className={`path-selection-card ${refGoal === 'language' ? 'selected' : ''}`}
-                          >
-                            <span className="path-icon">🗣️</span>
-                            <div>
-                              <p className="path-card-title">Language Course</p>
-                              <p className="path-card-desc">IELTS, OET, French, German training</p>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* STEP 3: Assessment specifics */}
-                    {questionnaireStep === 3 && (
-                      <div className="step-form-grid animate-slide-up">
-                        <div className="input-group">
-                          <label className="input-label">Target Country</label>
-                          <select 
-                            value={refCountry}
-                            onChange={(e) => setRefCountry(e.target.value)}
-                            className="select-premium"
-                          >
-                            <option value="">Select Target Country</option>
-                            <option value="Canada">Canada</option>
-                            <option value="Germany">Germany</option>
-                            <option value="UK">United Kingdom</option>
-                            <option value="USA">USA</option>
-                            <option value="Australia">Australia</option>
-                            <option value="France">France</option>
-                            <option value="Other">Other Countries</option>
-                          </select>
-                        </div>
-
-                        <div className="input-group">
-                          <label className="input-label">Language Test Status</label>
-                          <select 
-                            value={refExamReady}
-                            onChange={(e) => setRefExamReady(e.target.value)}
-                            className="select-premium"
-                          >
-                            <option value="">Select Status</option>
-                            <option value="Ready to take test">Ready to take test</option>
-                            <option value="Already cleared test">Already cleared test</option>
-                            <option value="Needs coaching/training">Needs coaching/training</option>
-                            <option value="Not required">Not required</option>
-                          </select>
-                        </div>
-
-                        <div className="input-group span-2-columns">
-                          <label className="input-label">Target Budget Range</label>
-                          <select 
-                            value={refBudget}
-                            onChange={(e) => setRefBudget(e.target.value)}
-                            className="select-premium"
-                          >
-                            <option value="">Select Budget Range</option>
-                            <option value="Under 10 Lakhs">Under 10 Lakhs</option>
-                            <option value="10 to 20 Lakhs">10 to 20 Lakhs</option>
-                            <option value="20 to 30 Lakhs">20 to 30 Lakhs</option>
-                            <option value="Above 30 Lakhs">Above 30 Lakhs</option>
-                          </select>
-                        </div>
-
-                        <div className="input-group span-2-columns">
-                          <label className="input-label">Additional Profile Notes / Background</label>
-                          <textarea 
-                            value={refNotes}
-                            onChange={(e) => setRefNotes(e.target.value)}
-                            placeholder="e.g. Friend has 3 years experience in IT, or wants intake of September."
-                            rows="3"
-                            className="textarea-premium"
-                          />
-                        </div>
+                      <div className="step-form-grid animate-slide-up" style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '5px' }}>
+                        {questions.map((q) => (
+                          <div key={q.id} className="input-group span-2-columns" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                            <label className="input-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                              <span>{q.question_text} *</span>
+                              <span style={{ 
+                                fontSize: '10px', 
+                                padding: '2px 6px', 
+                                borderRadius: '4px', 
+                                fontWeight: 'bold',
+                                backgroundColor: q.verified_by_admin ? 'rgba(249, 115, 22, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                color: q.verified_by_admin ? '#fb923c' : '#34d399'
+                              }}>
+                                {q.verified_by_admin ? `Admin Verified (${q.points} pts - Hold)` : `Instant (${q.points} pts)`}
+                              </span>
+                            </label>
+                            
+                            {q.question_type === 'text' && (
+                              <input 
+                                type="text"
+                                value={answers[q.id] || ''}
+                                onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+                                placeholder="Enter answer details"
+                                className="input-premium"
+                                required
+                              />
+                            )}
+                            
+                            {q.question_type === 'number' && (
+                              <input 
+                                type="number"
+                                value={answers[q.id] || ''}
+                                onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+                                placeholder="Enter number value"
+                                className="input-premium"
+                                required
+                              />
+                            )}
+                            
+                            {q.question_type === 'date' && (
+                              <input 
+                                type="date"
+                                value={answers[q.id] || ''}
+                                onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+                                className="input-premium"
+                                required
+                              />
+                            )}
+                            
+                            {q.question_type === 'boolean' && (
+                              <div style={{ display: 'flex', gap: '24px', marginTop: '6px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#cbd5e1' }}>
+                                  <input 
+                                    type="radio"
+                                    name={`q-${q.id}`}
+                                    value="Yes"
+                                    checked={answers[q.id] === 'Yes'}
+                                    onChange={() => setAnswers({ ...answers, [q.id]: 'Yes' })}
+                                    style={{ accentColor: '#6366f1' }}
+                                  /> Yes
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#cbd5e1' }}>
+                                  <input 
+                                    type="radio"
+                                    name={`q-${q.id}`}
+                                    value="No"
+                                    checked={answers[q.id] === 'No'}
+                                    onChange={() => setAnswers({ ...answers, [q.id]: 'No' })}
+                                    style={{ accentColor: '#6366f1' }}
+                                  /> No
+                                </label>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
 
                     {/* Navigation Buttons */}
-                    <div className="step-navigation-buttons">
+                    <div className="step-navigation-buttons" style={{ marginTop: '20px' }}>
                       {questionnaireStep > 1 ? (
                         <button
                           type="button"
@@ -958,16 +1046,12 @@ const ReferralPortal = () => {
                         <div />
                       )}
 
-                      {questionnaireStep < 3 ? (
+                      {questionnaireStep < 2 ? (
                         <button
                           type="button"
                           onClick={() => {
                             if (questionnaireStep === 1 && (!refFriendName || !refFriendEmail || !refFriendPhone)) {
                               setQuestionnaireError('Please fill out all contact fields before continuing');
-                              return;
-                            }
-                            if (questionnaireStep === 2 && !refGoal) {
-                              setQuestionnaireError('Please select a pathway of interest before continuing');
                               return;
                             }
                             setQuestionnaireError('');

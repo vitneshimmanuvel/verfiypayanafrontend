@@ -12,7 +12,7 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('leads');
   const navigate = useNavigate();
 
-  // Secure route checkkkk
+  // Secure route checkks
   useEffect(() => {
     const isAuth = sessionStorage.getItem('payana_admin_auth');
     if (isAuth !== 'true') {

@@ -755,3 +755,101 @@
     transform: scale(1);
   }
 }
+
+/* Config form styles */
+.ref-admin-config-form {
+  background-color: #ffffff;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.ref-admin-config-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 1.5rem 0;
+}
+
+.ref-admin-config-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .ref-admin-config-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.ref-admin-config-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ref-admin-config-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.ref-admin-config-input {
+  padding: 0.625rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+.ref-admin-config-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.ref-admin-config-help {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.ref-admin-config-footer {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Configs Dashboard Layout */
+.ref-admin-configs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+}
+
+.ref-admin-configs-left {
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .ref-admin-configs-container {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+  
+  .ref-admin-configs-left {
+    flex: 1.1;
+    min-width: 0;
+  }
+  
+  .ref-admin-questions-manager {
+    flex: 1.9;
+    min-width: 0;
+    margin-top: 0 !important;
+  }
+}
