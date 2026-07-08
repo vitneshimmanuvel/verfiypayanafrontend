@@ -29,7 +29,6 @@ const ReferralAdminPortal = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [updatingConfigs, setUpdatingConfigs] = useState(false);
   const [selectedReferral, setSelectedReferral] = useState(null); // Modal details view
-  
   // Custom Question Modal State
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
@@ -37,6 +36,8 @@ const ReferralAdminPortal = () => {
   const [qType, setQType] = useState('text');
   const [qPoints, setQPoints] = useState(10);
   const [qVerified, setQVerified] = useState(false);
+  const [qShowInRegister, setQShowInRegister] = useState(false);
+  const [qShowInReferral, setQShowInReferral] = useState(true);
 
   // Referrer User Management Modal State
   const [showReferrerModal, setShowReferrerModal] = useState(false);
@@ -122,7 +123,6 @@ const ReferralAdminPortal = () => {
       console.error('Error fetching configs:', err);
     }
   };
-
   const handleUpdateStatus = async (referralId, newStatus) => {
     setUpdatingStatusId(referralId);
     try {
@@ -208,7 +208,9 @@ const ReferralAdminPortal = () => {
           question_text: qText,
           question_type: qType,
           points: Number(qPoints),
-          verified_by_admin: qVerified
+          verified_by_admin: qVerified,
+          show_in_register: qShowInRegister,
+          show_in_referral: qShowInReferral
         })
       });
       
@@ -221,6 +223,8 @@ const ReferralAdminPortal = () => {
         setQType('text');
         setQPoints(10);
         setQVerified(false);
+        setQShowInRegister(false);
+        setQShowInReferral(true);
         fetchQuestions();
       } else {
         alert(data.message);
@@ -736,6 +740,61 @@ const ReferralAdminPortal = () => {
                 />
                 <p className="ref-admin-config-help">Brief instructions displayed below the calculator title.</p>
               </div>
+
+              {/* Referrer Registration Settings */}
+              <div style={{ gridColumn: '1 / -1', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#1e293b', margin: '0 0 15px 0' }}>
+                  👥 Referrer Registration Form Fields
+                </h3>
+              </div>
+
+              <div className="ref-admin-config-group">
+                <label className="ref-admin-config-label">
+                  Collect Email Address
+                </label>
+                <select 
+                  value={configs.reg_enable_email !== undefined ? String(configs.reg_enable_email) : 'true'}
+                  onChange={(e) => handleConfigChange('reg_enable_email', e.target.value)}
+                  className="ref-admin-config-input"
+                  style={{ height: '40px' }}
+                >
+                  <option value="true">Yes (Show and Require)</option>
+                  <option value="false">No (Hide)</option>
+                </select>
+                <p className="ref-admin-config-help">If disabled, email address is hidden and auto-generated behind the scenes.</p>
+              </div>
+
+              <div className="ref-admin-config-group">
+                <label className="ref-admin-config-label">
+                  Collect Phone Number
+                </label>
+                <select 
+                  value={configs.reg_enable_phone !== undefined ? String(configs.reg_enable_phone) : 'true'}
+                  onChange={(e) => handleConfigChange('reg_enable_phone', e.target.value)}
+                  className="ref-admin-config-input"
+                  style={{ height: '40px' }}
+                >
+                  <option value="true">Yes (Show and Require)</option>
+                  <option value="false">No (Hide)</option>
+                </select>
+                <p className="ref-admin-config-help">If disabled, phone number is hidden and auto-generated behind the scenes.</p>
+              </div>
+
+              <div className="ref-admin-config-group">
+                <label className="ref-admin-config-label">
+                  Show Old Client Status Checkbox
+                </label>
+                <select 
+                  value={configs.reg_enable_old_client !== undefined ? String(configs.reg_enable_old_client) : 'true'}
+                  onChange={(e) => handleConfigChange('reg_enable_old_client', e.target.value)}
+                  className="ref-admin-config-input"
+                  style={{ height: '40px' }}
+                >
+                  <option value="true">Yes (Show Checkbox)</option>
+                  <option value="false">No (Hide Checkbox)</option>
+                </select>
+                <p className="ref-admin-config-help">Toggle the visibility of the "I am an existing/old client" tick box.</p>
+              </div>
             </div>
 
             <div className="ref-admin-config-footer">
@@ -764,6 +823,8 @@ const ReferralAdminPortal = () => {
                   setQType('text');
                   setQPoints(10);
                   setQVerified(false);
+                  setQShowInRegister(false);
+                  setQShowInReferral(true);
                   setShowQuestionModal(true);
                 }}
                 className="ref-admin-submit-btn"
@@ -781,13 +842,15 @@ const ReferralAdminPortal = () => {
                     <th className="ref-admin-th">Input Type</th>
                     <th className="ref-admin-th" style={{ textAlign: 'center' }}>Points Value</th>
                     <th className="ref-admin-th" style={{ textAlign: 'center' }}>Admin Verification</th>
+                    <th className="ref-admin-th" style={{ textAlign: 'center' }}>Show In Register</th>
+                    <th className="ref-admin-th" style={{ textAlign: 'center' }}>Show In Lead Form</th>
                     <th className="ref-admin-th" style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody className="ref-admin-tbody">
                   {questions.map((q) => (
                     <tr key={q.id} className="ref-admin-tr">
-                      <td className="ref-admin-td" style={{ fontWeight: '600', color: '#0f172a' }}>
+                       <td className="ref-admin-td" style={{ fontWeight: '600', color: '#0f172a' }}>
                         {q.question_text}
                       </td>
                       <td className="ref-admin-td" style={{ textTransform: 'capitalize' }}>
@@ -801,6 +864,16 @@ const ReferralAdminPortal = () => {
                           {q.verified_by_admin ? 'Required' : 'None'}
                         </span>
                       </td>
+                      <td className="ref-admin-td" style={{ textAlign: 'center' }}>
+                        <span className={`ref-admin-badge-client ${q.show_in_register ? 'yes' : 'no'}`}>
+                          {q.show_in_register ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                      <td className="ref-admin-td" style={{ textAlign: 'center' }}>
+                        <span className={`ref-admin-badge-client ${q.show_in_referral !== false ? 'yes' : 'no'}`}>
+                          {q.show_in_referral !== false ? 'Yes' : 'No'}
+                        </span>
+                      </td>
                       <td className="ref-admin-td" style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                           <button 
@@ -810,6 +883,8 @@ const ReferralAdminPortal = () => {
                               setQType(q.question_type);
                               setQPoints(q.points);
                               setQVerified(q.verified_by_admin);
+                              setQShowInRegister(!!q.show_in_register);
+                              setQShowInReferral(q.show_in_referral !== false);
                               setShowQuestionModal(true);
                             }}
                             className="ref-admin-adjust-points-btn"
@@ -1062,7 +1137,7 @@ const ReferralAdminPortal = () => {
                 />
               </div>
 
-              <div className="checkbox-wrapper" style={{ margin: '20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="checkbox-wrapper" style={{ margin: '20px 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input 
                   type="checkbox"
                   id="verified-check"
@@ -1072,6 +1147,32 @@ const ReferralAdminPortal = () => {
                 />
                 <label htmlFor="verified-check" style={{ fontSize: '13px', color: '#334155', fontWeight: '600', cursor: 'pointer' }}>
                   Requires Admin Verification (Points placed on hold)
+                </label>
+              </div>
+
+              <div className="checkbox-wrapper" style={{ margin: '10px 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input 
+                  type="checkbox"
+                  id="show-register-check"
+                  checked={qShowInRegister}
+                  onChange={(e) => setQShowInRegister(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="show-register-check" style={{ fontSize: '13px', color: '#334155', fontWeight: '600', cursor: 'pointer' }}>
+                  Show in Referrer Registration Form
+                </label>
+              </div>
+
+              <div className="checkbox-wrapper" style={{ margin: '10px 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input 
+                  type="checkbox"
+                  id="show-referral-check"
+                  checked={qShowInReferral}
+                  onChange={(e) => setQShowInReferral(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="show-referral-check" style={{ fontSize: '13px', color: '#334155', fontWeight: '600', cursor: 'pointer' }}>
+                  Show in Referral (Lead) Form
                 </label>
               </div>
 
@@ -1173,6 +1274,37 @@ const ReferralAdminPortal = () => {
                 <label htmlFor="ref-client-check" style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: '600', cursor: 'pointer' }}>
                   Is Old/Existing Client of Payana
                 </label>
+              </div>
+
+              {/* Questionnaire / Assessment details */}
+              <div className="referrer-profile-questionnaire" style={{ marginTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '15px' }}>
+                <h4 style={{ fontSize: '14px', color: '#fff', margin: '0 0 10px 0', fontWeight: 'bold' }}>👤 Referrer Profile Assessment</h4>
+                
+                {(() => {
+                  let qList = [];
+                  try {
+                    qList = typeof editingReferrer.questionnaire === 'string'
+                      ? JSON.parse(editingReferrer.questionnaire)
+                      : (editingReferrer.questionnaire || []);
+                  } catch (e) {
+                    qList = [];
+                  }
+
+                  if (!Array.isArray(qList) || qList.length === 0) {
+                    return <p style={{ fontSize: '13px', color: '#cbd5e1', fontStyle: 'italic', margin: 0 }}>No profile assessment questions answered yet.</p>;
+                  }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto', paddingRight: '5px' }}>
+                      {qList.map((item, idx) => (
+                        <div key={idx} style={{ backgroundColor: 'rgba(15, 23, 42, 0.3)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <p style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>{item.questionText}</p>
+                          <p style={{ margin: 0, fontSize: '13px', color: '#f1f5f9', fontWeight: '600' }}>{item.answer || <span style={{ color: '#64748b', fontStyle: 'italic' }}>Not answered</span>}</p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="ref-admin-modal-footer" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
